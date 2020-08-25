@@ -1,11 +1,6 @@
-const express = require('express')
-const app = express()
-const cors = require('cors')
+
 const puppeteer = require('puppeteer')
 const cheerio = require('cheerio');
-
-app.use(cors());
-app.use(express.json({ limit: '10mb' }))
 
 const preparePageForTests = async (page) => {
     // Pass the User-Agent Test.
@@ -62,7 +57,7 @@ const sleep = (ms) => {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-app.get('/vin/:vin', async function (req, res) {
+(async () => {
     // создаем объект для дальнейшей записи в него
     let returnObject = { vehicle: {}, ownershipPeriods: [] }
     // подготавливаем страницу
@@ -82,7 +77,7 @@ app.get('/vin/:vin', async function (req, res) {
     await page.goto('https://xn--90adear.xn--p1ai/check/auto');
     await sleep(1000)
     // вводим ВИН по символу имитируя пользователя
-    let vin = req.params.vin
+    let vin = process.argv[2]
     for (n = 0; n < vin.length; n++) {
         await sleep(200);
         await page.type('#checkAutoVIN', vin[n]);
@@ -94,7 +89,7 @@ app.get('/vin/:vin', async function (req, res) {
     while (i <= 40) {
         let html = await page.$eval('#checkAutoHistory', e => e.innerHTML);
         if (html.indexOf('Выполняется запрос, ждите') + 1 && !html.indexOf('<ul class="fields-list vehicle">') + 1) {
-            console.log('Ожидание')
+            //console.log('Ожидание')
         } else {
             i = 45
         }
@@ -118,18 +113,10 @@ app.get('/vin/:vin', async function (req, res) {
             description: checkAutoHistory(this).children().eq(3).text()
         })
     });
+    // получаем информационное сообщение
+    let info = await page.$eval('#checkAutoHistory .check-space.check-message', e => e.innerHTML);
+    // возвращаем результат
+    JSON.stringify(returnObject.vehicle) !== "{}" ? console.log(JSON.stringify(returnObject)) : console.log(JSON.stringify({ error: info }))
     // закрываем сессию
     await browser.close()
-    // возвращаем результат
-    res.json(returnObject)
-})
-
-app.listen(9999);
-console.log(`сервер запущен на порту 9999`);
-
-
-
-
-
-
-
+})();
